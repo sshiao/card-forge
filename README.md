@@ -1,17 +1,36 @@
 # Card Forge
 
-Turn a photo into a holo trading card. Qwen3-VL looks at the photo and writes the card: a name, an element, HP, an ability, two moves and flavor text that fit the person. Qwen Image Edit paints the person as the hero. Pick one of nine frames, from vintage holo to a 3D glass card, tilt the card in the light, edit any line, and download it as a PNG or a turntable video.
+**One photo in. One holo trading card out.** Open-weights models on ComfyUI read your photo, write your card and paint you as the hero. Then the browser frames the card, tilts it in the light, and can turn it into a 3D glass card that you spin.
 
-Built for Comfy's [Open Source Higgsfield](https://comfy.org/open-source-higgsfield/) challenge, in the Open Weights Only category. Every generation step is an open-weights ComfyUI workflow. The app is not affiliated with Higgsfield. The card designs are original: the frames take their looks from familiar eras of trading cards and ball cards, but are not tied to any game, brand or league.
+[![MIT license](https://img.shields.io/badge/license-MIT-blue)](LICENSE) ![Open weights only](https://img.shields.io/badge/models-open%20weights%20only-2ea44f) ![Built on ComfyUI](https://img.shields.io/badge/built%20on-ComfyUI-6e40c9) [![#OpenSourceHiggsfield](https://img.shields.io/badge/%23-OpenSourceHiggsfield-black)](https://x.com/sshiao/status/2117509428878717417)
 
-<p>
-  <img src="examples/card/photo.png" alt="A photo of Mara, a generated person" height="420">
-  <img src="docs/card-mara.jpg" alt="Mara's card in the Future glass frame" height="420">
+<p align="center">
+  <img src="examples/card/photo.png" alt="A photo of Mara, a generated person" height="360">
+  <img src="docs/card-gold.jpg" alt="Mara's card in the gold rare frame" height="360">
+  <img src="docs/glass-spin.webp" alt="Mara's card in the Future glass frame, turning in 3D" height="360">
 </p>
+<p align="center"><sub>A photo, its gold rare card, and its 3D glass card. Mara is a generated person who does not exist. Her cards come from the demo run.</sub></p>
 
-Mara is a generated person who does not exist. Her card comes from the demo run.
+**▶ Demo video (1:40):** [watch on X](https://x.com/sshiao/status/2117509428878717417) or [download the MP4](https://github.com/sshiao/card-forge/releases/download/v1.0.0/card-forge-demo.mp4). The voiceover is Qwen3-TTS, also on Comfy Cloud.
 
-**Demo video (1:40):** [watch on X](https://x.com/sshiao/status/2117509428878717417) or [download the MP4](https://github.com/sshiao/card-forge/releases/download/v1.0.0/card-forge-demo.mp4). The voiceover is Qwen3-TTS, also run on Comfy Cloud.
+Built for Comfy's [Open Source Higgsfield](https://comfy.org/open-source-higgsfield/) challenge, entered in Open Weights Only and Most Innovative. Every generation step is an open-weights ComfyUI workflow. The app is not affiliated with Higgsfield. The card designs are original: the frames take their looks from familiar eras of trading cards and ball cards, but are not tied to any game, brand or league.
+
+## Try it in two minutes, with no key
+
+```sh
+git clone https://github.com/sshiao/card-forge.git && cd card-forge
+npm ci
+echo "FORGE_MOCK=1" > .env.local
+npm run dev
+```
+
+Open <http://127.0.0.1:3000> and select **Forge my card**. Mock mode replays the files of real runs in `examples/card/`, so every screen works with no Comfy key and no credits. To make cards of your own photos, see [Run it](#run-it).
+
+## What's new
+
+- **Your photo becomes game-ready card data.** Qwen3-VL picks your element from your colors and writes a name, HP and moves that fit you. It answers in JSON, and a parser checks every field, so a bad answer cannot break a card.
+- **The cards are code, not pixels.** The browser draws every frame as SVG around one painting. The text stays sharp, you can edit every line, and one painting fills nine frames.
+- **A flat cutout becomes a 3D collectible.** BiRefNet cuts you out in ComfyUI, and Three.js builds a see-through glass card around you. Spin it, and export it as a turntable video for a story or a reel.
 
 ## What you get
 
@@ -24,27 +43,32 @@ Mara is a generated person who does not exist. Her card comes from the demo run.
 - **Files to keep:** the card as a 1260 × 1760 PNG, and the art on its own. The glass card also records a 6-second turntable video at 1080 × 1920, ready for a story or a reel.
 - **Four art styles:** anime, painted, 3D animated and photo-real.
 
+<p align="center"><img src="docs/frames.jpg" alt="The demo card in six frames: gold rare, full art, illustration rare, rainbow rare, chrome refractor and retro cardboard" width="720"></p>
+<p align="center"><sub>Six of the nine frames, with one painting. Vintage holo and modern show the art in a window, and Future glass is the 3D card at the top.</sub></p>
+
 ## How it works
 
 ```text
 photo
   │
   ▼
-1. Card text   Qwen3-VL-8B Instruct reads the photo and answers with JSON:          workflows/card-text.api.json
-               name, element, HP, ability, moves, stats, flavor, pose, scene and a hero outfit
+1. Card text   Qwen3-VL-8B Instruct reads the photo and answers with JSON: name,
+               element, HP, ability, moves, stats, flavor, pose, scene, outfit
   │
   ▼
-2. Art         Qwen Image Edit 2511 with the Lightning 4-step LoRA paints the       workflows/card-art.api.json
-               person in that pose and scene, in their own clothes or the hero      workflows/card-cutout.api.json
+2. Art         Qwen Image Edit 2511 with the Lightning 4-step LoRA paints the
+               person in that pose and scene, in their own clothes or the hero
                outfit. Wide art for framed cards, tall art for full-art cards.
                For the glass card, it paints them on a plain background, and
                BiRefNet cuts them out. Two candidates; you pick one.
   │
   ▼
-3. Card        The browser draws the frame, the text and the element badges as      components/card.tsx
-               one SVG, adds the foil, and exports the PNG. Three.js draws the      components/glass.tsx
+3. Card        The browser draws the frame, the text and the element badges as
+               one SVG, adds the foil, and exports the PNG. Three.js draws the
                glass card in 3D and records its turntable video.
 ```
+
+The workflows are `workflows/card-text.api.json`, `workflows/card-art.api.json` and `workflows/card-cutout.api.json`. The card is drawn by `components/card.tsx`, and the glass card by `components/glass.tsx`.
 
 | Step | ComfyUI nodes | Open-weights model |
 | --- | --- | --- |
