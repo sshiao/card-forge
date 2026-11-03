@@ -11,6 +11,8 @@ Built for Comfy's [Open Source Higgsfield](https://comfy.org/open-source-higgsfi
 
 Mara is a generated person who does not exist. Her card comes from the demo run.
 
+**Demo video (1:40):** [watch on X](https://x.com/sshiao/status/2117509428878717417) or [download the MP4](https://github.com/sshiao/card-forge/releases/download/v1.0.0/card-forge-demo.mp4). The voiceover is Qwen3-TTS, also run on Comfy Cloud.
+
 ## What you get
 
 - **Card text from your photo.** Qwen3-VL-8B reads your clothes, colors, setting and expression and writes a name, a title, an element, HP, an ability, two moves, a weakness, a resistance, a retreat cost and flavor text. It picks the element from your strongest colors, unless you choose one.

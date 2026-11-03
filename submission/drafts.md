@@ -58,9 +58,9 @@ Attach the demo video.
 | Project name/title | Card Forge |
 | One-line description (94 of 100 characters) | Turn a photo into a holo trading card: open-weights models write it and paint you as the hero. |
 | GitHub repo URL | https://github.com/sshiao/card-forge |
-| Demo video URL | (the X post, or another link to the video) |
+| Demo video URL | https://x.com/sshiao/status/2117509428878717417 (the MP4 is also at https://github.com/sshiao/card-forge/releases/download/v1.0.0/card-forge-demo.mp4) |
 | Live link | Leave blank. The app needs a long-running Node server and a Comfy key. |
-| Social post link | (the X post) |
+| Social post link | https://x.com/sshiao/status/2117509428878717417 |
 | Which parts of ComfyUI | Comfy API, Comfy SDK |
 | Generative models | Qwen3-VL-8B-Instruct (card text); Qwen Image Edit 2511 with the Lightning 4-step LoRA (hero art); BiRefNet (cutout for the 3D glass card); Qwen3-TTS 1.7B (demo voiceover). All open weights. |
 | Other tools or techniques | Next.js app on @comfyorg/sdk, with ComfyUI workflows in API format: ComfyUI-QwenVL (AILab_QwenVL_Advanced) with SaveText for the card JSON, TextEncodeQwenImageEditPlus and FluxKontextMultiReferenceLatentMethod for the art, and the core LoadBackgroundRemovalModel, RemoveBackground, InvertMask and JoinImageWithAlpha nodes for the cutout. The browser draws nine original frames as SVG, with CSS foil that follows the pointer, and the glass card in Three.js. Mediabunny encodes its turntable video with WebCodecs. A parser checks every field of the model's JSON, so a bad answer cannot break a card. |
