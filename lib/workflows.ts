@@ -1,80 +1,33 @@
-// Fills the three Comfy workflow templates in workflows/. Nothing here talks to the network.
-// Each template is an API-format export, and these functions set its inputs by node id.
+// Fills the ComfyUI API-format workflows in workflows/ by node id. The templates stay unchanged.
 
 export type Graph = Record<string, { class_type: string; inputs: Record<string, unknown>; _meta?: { title?: string } }>;
 
 export const MAX_SEED = 2 ** 32 - 1;
 
 export function randomSeed(): number {
-  return crypto.getRandomValues(new Uint32Array(1))[0];
+  return Math.floor(Math.random() * MAX_SEED);
 }
 
-// The save nodes of each workflow, by id.
-export const CANONICAL_OUTPUT = "save";
-export const SHEET_VIEWS = ["three_quarter", "side", "back"] as const;
-export const SPLAT_OUTPUTS = { spz: "save_spz", ply: "save_ply", orbit: "save_orbit" } as const;
-
-export type SheetView = (typeof SHEET_VIEWS)[number];
-
-// workflows/trellis2.api.json: the approved front image -> TRELLIS.2 -> a textured GLB mesh.
-// TRELLIS.2 takes one image. Averaging the conditions of several views blurs the face, so it gets the front only.
-export function trellisWorkflow(template: Graph, input: { canonical: unknown; seed: number }): Graph {
-  const graph = structuredClone(template);
-  graph.image.inputs.image = input.canonical;
-  for (const name of ["structure_sampler", "shape_sampler", "upsample_sampler", "texture_sampler"]) {
-    graph[name].inputs.seed = input.seed;
-  }
+// workflows/card-text.api.json: photo -> Qwen3-VL-8B, sampled at temperature 0.9 so cards differ ->
+// the card text as JSON, saved by SaveText.
+export function cardTextWorkflow(template: Graph, input: { photo: unknown; prompt: string; seed: number }): Graph {
+  const graph: Graph = structuredClone(template);
+  graph.photo.inputs.image = input.photo;
+  graph.vlm.inputs.custom_prompt = input.prompt;
+  // The node takes seeds from 1.
+  graph.vlm.inputs.seed = Math.max(1, input.seed);
   return graph;
 }
 
-// workflows/portrait.api.json: a description -> Qwen Image 2512 (Lightning, 4 steps) -> a portrait,
-// for people who have no picture of their character.
-export function portraitWorkflow(template: Graph, input: { prompt: string; seed: number }): Graph {
+// workflows/card-art.api.json: photo -> Qwen Image Edit 2511 with the Lightning 4-step LoRA ->
+// art candidates in the size of the card layout.
+// workflows/card-cutout.api.json has the same nodes, then BiRefNet cuts the person out of each
+// candidate, and the PNGs keep a transparent background.
+export function cardArtWorkflow(template: Graph, input: { photo: unknown; prompt: string; seed: number; candidates: number; width: number; height: number }): Graph {
   const graph: Graph = structuredClone(template);
-  graph.positive.inputs.text = input.prompt;
-  graph.sampler.inputs.seed = input.seed;
-  return graph;
-}
-
-// workflows/canonical.api.json: portrait -> Qwen Image Edit 2511 (Lightning, 4 steps) -> two candidates.
-export function canonicalWorkflow(template: Graph, input: { portrait: unknown; prompt: string; seed: number; candidates: number }): Graph {
-  const graph: Graph = structuredClone(template);
-  graph.portrait.inputs.image = input.portrait;
+  graph.photo.inputs.image = input.photo;
   graph.positive_text.inputs.prompt = input.prompt;
-  graph.latent.inputs.batch_size = input.candidates;
+  graph.latent.inputs = { ...graph.latent.inputs, width: input.width, height: input.height, batch_size: input.candidates };
   graph.sampler.inputs.seed = input.seed;
-  return graph;
-}
-
-// workflows/headshot.api.json: portrait (the face) + approved design (hair, outfit, style) ->
-// Qwen Image Edit 2511 -> one front-facing head and shoulders. In the full-body design the face is
-// only about 90 px tall, so the face pass starts again from the portrait.
-export function headshotWorkflow(template: Graph, input: { portrait: unknown; canonical: unknown; prompt: string; seed: number }): Graph {
-  const graph: Graph = structuredClone(template);
-  graph.portrait.inputs.image = input.portrait;
-  graph.canonical.inputs.image = input.canonical;
-  graph.positive_text.inputs.prompt = input.prompt;
-  graph.sampler.inputs.seed = input.seed;
-  return graph;
-}
-
-// workflows/sheet.api.json: canonical -> Qwen Image Edit 2511 with the multiple-angles LoRA ->
-// three-quarter, side and back views. The canonical image is the front view.
-export function sheetWorkflow(template: Graph, input: { canonical: unknown; seed: number }): Graph {
-  const graph: Graph = structuredClone(template);
-  graph.canonical.inputs.image = input.canonical;
-  SHEET_VIEWS.forEach((view, index) => {
-    graph[`${view}_sampler`].inputs.seed = (input.seed + index) % (MAX_SEED + 1);
-  });
-  return graph;
-}
-
-// workflows/triposplat.api.json: canonical -> BiRefNet cutout -> TripoSplat -> SPZ, PLY and an orbit video.
-export function splatWorkflow(template: Graph, input: { canonical: unknown; seed: number; gaussians?: number }): Graph {
-  const graph: Graph = structuredClone(template);
-  graph.image.inputs.image = input.canonical;
-  graph.sampler.inputs.seed = input.seed;
-  graph.decode.inputs.seed = input.seed;
-  if (input.gaussians) graph.decode.inputs.num_gaussians = input.gaussians;
   return graph;
 }

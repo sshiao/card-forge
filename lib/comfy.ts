@@ -4,7 +4,7 @@ import { Comfy, Forbidden, InsufficientCredits, JobFailed, MissingCredentials, U
 import type { Graph } from "./workflows.ts";
 
 export type Media = { bytes: Uint8Array; type: string; name: string };
-export type WorkflowName = "portrait" | "headshot" | "canonical" | "sheet" | "triposplat" | "trellis2";
+export type WorkflowName = "card-text" | "card-art" | "card-cutout";
 
 function apiKey() {
   const key = process.env.COMFY_API_KEY?.trim();
@@ -17,25 +17,13 @@ export function hasApiKey() {
 }
 
 // The SDK reads COMFY_BASE_URL itself. Blank means Comfy Cloud.
-function client(endpoint?: string) {
-  if (!endpoint) return new Comfy({ apiKey: apiKey(), clientInfo: "character-forge" });
-  const url = new URL(endpoint);
-  if (url.protocol !== "https:" && !(url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname))) throw new Error("Refinement endpoint must use HTTPS.");
-  // SDK 0.5 reads this only in its synchronous constructor. Restore before any
-  // await, so concurrent Qwen/TRELLIS clients retain their own Cloud endpoint.
-  const previous = process.env.COMFY_BASE_URL;
-  try {
-    process.env.COMFY_BASE_URL = endpoint;
-    return new Comfy({ apiKey: apiKey(), clientInfo: "character-forge-refinement" });
-  } finally {
-    if (previous === undefined) delete process.env.COMFY_BASE_URL;
-    else process.env.COMFY_BASE_URL = previous;
-  }
+function client() {
+  return new Comfy({ apiKey: apiKey(), clientInfo: "card-forge" });
 }
 
 export function extension(type: string, name = "") {
   const known: Record<string, string> = {
-    "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "video/mp4": "mp4", "video/webm": "webm",
+    "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "application/json": "json", "text/plain": "txt",
   };
   const fromName = name.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
   return fromName ?? known[type] ?? type.split("/")[1]?.replace(/[^a-z0-9]/g, "") ?? "bin";
@@ -50,7 +38,7 @@ export function upload(api: Comfy, media: Media) {
   return api.assets.fromBytes(media.bytes, { filename: media.name, contentType: media.type });
 }
 
-// TripoSplat and a cold Qwen model can wait in the Comfy Cloud queue for a while.
+// A cold Qwen model can wait in the Comfy Cloud queue for a while.
 const WAIT_MS = 30 * 60_000;
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -85,8 +73,8 @@ async function finish(api: Comfy, id: string, nodes: string[], submitted?: Job):
 export type RunOptions = { job?: string | null; onSubmit?: (job: string) => Promise<void> };
 
 // Submits a graph (or picks up a job an earlier attempt submitted) and returns the files of each save node.
-export async function runGraph(build: (api: Comfy) => Graph, nodes: string[], options: RunOptions = {}, endpoint?: string) {
-  const api = client(endpoint);
+export async function runGraph(build: (api: Comfy) => Graph, nodes: string[], options: RunOptions = {}) {
+  const api = client();
   if (options.job) return finish(api, options.job, nodes);
   const job = await api.submit(api.workflows.fromJson(build(api)));
   await options.onSubmit?.(job.id);

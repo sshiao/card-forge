@@ -1,0 +1,17 @@
+{
+  "name": "Sunny Scribe",
+  "title": "Whispering Quill Sage",
+  "element": "light",
+  "hp": 170,
+  "ability": { "name": "Golden Page Shield", "text": "Prevents all damage until end of turn if she holds pen." },
+  "attacks": [
+    { "name": "Brewed Brilliance", "cost": 1, "damage": "40+", "text": "She scribbles notes; enemies giggle then vanish into sunlight." },
+    { "name": "Sunbeam Scribble Storm", "cost": 3, "damage": "90+", "text": "Her quills rain golden ink; foes glow briefly before fading away." }
+  ],
+  "weakness": "shadow",
+  "resistance": "none",
+  "retreat": 2,
+  "flavor": "Writes spells on napkins while sipping tea. Her stories make sunflowers dance.",
+  "pose": "Leaning back slightly, holding stylus mid-scribble, eyes twinkling mischievously.",
+  "scene": "Pastel sky behind her as glowing parchment floats around her writing desk."
+}

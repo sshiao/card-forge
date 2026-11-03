@@ -1,80 +1,46 @@
-// Runs one workflow from the command line, without the app. Useful to test a workflow change.
+// Runs one card step from the command line, without the app. Useful to test a prompt or a workflow.
 //
-//   npm run forge -- portrait "<description>" [out-dir]
-//   npm run forge -- canonical <portrait.png> [out-dir]     (FORGE_STYLE and FORGE_NOTES set the style and the notes)
-//   npm run forge -- sheet <canonical.png> [out-dir]
-//   npm run forge -- splat <canonical.png> [out-dir]
-//   npm run forge -- headshot .characters/<id> [out-dir]   (its portrait and canonical image)
-//   npm run forge -- mesh <canonical.png> [out-dir]
+//   npm run forge -- text <photo> [name] [element]                         writes the card text as JSON
+//   npm run forge -- art <photo> <text.json> [frame] [art style] [outfit]  paints two art candidates
+//
+// The outfit is "own" (the clothes from the photo, by default) or "hero" (a new outfit).
+//
+// Files go to .test-output/<step>-<time>/.
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { extension, runGraph, template, upload, type Media } from "../lib/comfy.ts";
+import type { Media } from "../lib/comfy.ts";
 import { comfyEngine } from "../lib/engine.ts";
-import { canonicalPrompt, DEFAULT_STYLE, headshotPrompt, portraitPrompt, type StyleId } from "../lib/forge.ts";
 import {
-  CANONICAL_OUTPUT, SHEET_VIEWS, SPLAT_OUTPUTS, canonicalWorkflow, portraitWorkflow, randomSeed, sheetWorkflow, splatWorkflow,
-} from "../lib/workflows.ts";
+  ART_SIZES, DEFAULT_ART_STYLE, DEFAULT_FRAME, DEFAULT_OUTFIT, FRAMES, artPrompt, cardTextPrompt, parseCardText,
+  type ArtStyleId, type CardText, type ElementId, type FrameId, type OutfitId,
+} from "../lib/forge.ts";
+import { randomSeed } from "../lib/workflows.ts";
 
-const [stage, input, outDir = join(".test-output", `${stage}-${Date.now().toString(36)}`)] = process.argv.slice(2);
-if (!stage || !input) {
-  console.error("Usage: npm run forge -- portrait|canonical|sheet|splat|headshot|mesh <image, description or character dir> [out-dir]");
+const [stage, photoPath, ...rest] = process.argv.slice(2);
+if ((stage !== "text" && stage !== "art") || !photoPath) {
+  console.error("Usage: npm run forge -- text <photo> [name] [element]\n       npm run forge -- art <photo> <text.json> [frame] [art style] [outfit]");
   process.exit(1);
 }
-
-const media: Media | null = stage === "portrait" || stage === "headshot" ? null
-  : { bytes: new Uint8Array(await readFile(input)), type: input.endsWith(".png") ? "image/png" : "image/jpeg", name: basename(input) };
-let seed = randomSeed();
-await mkdir(outDir, { recursive: true });
+const photo: Media = { bytes: new Uint8Array(await readFile(photoPath)), type: photoPath.endsWith(".png") ? "image/png" : "image/jpeg", name: basename(photoPath) };
+const out = join(".test-output", `${stage}-${Date.now().toString(36)}`);
+await mkdir(out, { recursive: true });
+const seed = randomSeed();
 const started = Date.now();
+const options = { onSubmit: async (job: string) => console.log(`Submitted job ${job}`) };
 
-let nodes: string[];
-let outputs: Record<string, Media[]>;
-const onSubmit = async (job: string) => {
-  await writeFile(join(outDir, "run.json"), JSON.stringify({ job, stage, input, seed, started }, null, 2));
-  console.log(`Submitted job ${job}`);
-};
-if (stage === "headshot") {
-  // Input is a character directory: its portrait carries the face, its canonical image the design.
-  const state = JSON.parse(await readFile(join(input, "character.json"), "utf8"));
-  const read = async (name: string): Promise<Media> => ({ bytes: new Uint8Array(await readFile(join(input, name))), type: name.endsWith(".png") ? "image/png" : "image/jpeg", name });
-  nodes = ["save"];
-  const shot = await comfyEngine.headshot({
-    portrait: await read(state.portrait), canonical: await read(state.canonical), prompt: headshotPrompt(state.request.style as StyleId), seed,
-  }, { onSubmit });
-  outputs = { save: [shot] };
-} else if (stage === "portrait") {
-  const graph = await template("portrait");
-  nodes = ["save"];
-  outputs = await runGraph(() => portraitWorkflow(graph, { prompt: portraitPrompt(input, DEFAULT_STYLE), seed }), nodes, { onSubmit });
-} else if (!media) {
-  throw new Error("Give an image.");
-} else if (stage === "canonical") {
-  const graph = await template("canonical");
-  nodes = [CANONICAL_OUTPUT];
-  const prompt = canonicalPrompt((process.env.FORGE_STYLE as StyleId | undefined) ?? DEFAULT_STYLE, process.env.FORGE_NOTES);
-  outputs = await runGraph((api) => canonicalWorkflow(graph, { portrait: upload(api, media), prompt, seed, candidates: 2 }), nodes, { onSubmit });
-} else if (stage === "sheet") {
-  const graph = await template("sheet");
-  nodes = [...SHEET_VIEWS];
-  outputs = await runGraph((api) => sheetWorkflow(graph, { canonical: upload(api, media), seed }), nodes, { onSubmit });
-} else if (stage === "mesh") {
-  nodes = ["mesh"];
-  const result = await comfyEngine.mesh({ canonical: media, seed }, { onSubmit });
-  outputs = { mesh: [result.glb] };
-} else if (stage === "splat") {
-  const graph = await template("triposplat");
-  nodes = Object.values(SPLAT_OUTPUTS);
-  outputs = await runGraph((api) => splatWorkflow(graph, { canonical: upload(api, media), seed }), nodes, { onSubmit });
+if (stage === "text") {
+  const request = { name: rest[0] ?? "", element: (rest[1] ?? "auto") as ElementId | "auto" };
+  const raw = await comfyEngine.text({ photo, prompt: cardTextPrompt(request), seed }, options);
+  await writeFile(join(out, "raw.txt"), raw);
+  const text = parseCardText(raw, request);
+  await writeFile(join(out, "text.json"), JSON.stringify(text, null, 2));
+  console.log(JSON.stringify(text, null, 2));
 } else {
-  throw new Error(`Unknown stage "${stage}".`);
+  const text = parseCardText(await readFile(rest[0], "utf8"), { name: "", element: "auto" }) as CardText;
+  const frame = (rest[1] ?? DEFAULT_FRAME) as FrameId;
+  const layout = FRAMES[frame].layout;
+  const art = await comfyEngine.art({ photo, prompt: artPrompt(text, (rest[2] ?? DEFAULT_ART_STYLE) as ArtStyleId, layout, (rest[3] ?? DEFAULT_OUTFIT) as OutfitId), seed, candidates: 2, ...ART_SIZES[layout], layout }, options);
+  for (const [index, file] of art.entries()) await writeFile(join(out, `art-${index + 1}.png`), file.bytes);
 }
-
-for (const node of nodes) {
-  for (const [index, file] of outputs[node].entries()) {
-    const target = join(outDir, `${node}-${index + 1}.${extension(file.type, file.name)}`);
-    await writeFile(target, file.bytes);
-    console.log(`${target}  ${file.type}  ${(file.bytes.length / 1024).toFixed(0)} KB  (${file.name})`);
-  }
-}
-console.log(`Done in ${((Date.now() - started) / 1000).toFixed(0)} s, seed ${seed}.`);
+console.log(`Wrote ${out} in ${Math.round((Date.now() - started) / 1000)} s, seed ${seed}.`);

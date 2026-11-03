@@ -9,3 +9,7 @@ next-env.d.ts
 .claude/
 .characters/
 .test-output/
+.cards/
+
+# The demo videos are published as a release asset, not in git.
+submission/*.mp4

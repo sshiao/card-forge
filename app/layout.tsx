@@ -6,8 +6,8 @@ const display = Chakra_Petch({ subsets: ["latin"], weight: ["500", "600", "700"]
 const body = Inter({ subsets: ["latin"], variable: "--font-body" });
 
 export const metadata: Metadata = {
-  title: "Character Forge 3D",
-  description: "Turn one portrait into a character sheet and a textured 3D model you can rotate. Open-weights models on ComfyUI: Qwen Image Edit and TRELLIS.2.",
+  title: "Card Forge",
+  description: "Turn a photo into a holo trading card: Qwen3-VL writes it and Qwen Image Edit paints you as the hero. Open-weights models on ComfyUI.",
 };
 
 export const viewport: Viewport = { themeColor: "#07080d", width: "device-width", initialScale: 1 };

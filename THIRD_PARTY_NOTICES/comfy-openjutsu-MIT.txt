@@ -1,4 +1,4 @@
-Character Forge adapts the API routes, job polling and error helpers of the
+Card Forge adapts the API routes, job polling and error helpers of the
 XitBC app, which adapts them from Comfy Org's comfy-openjutsu app template
 (https://github.com/Comfy-Org/comfy-openjutsu), released under the MIT License below.
 
